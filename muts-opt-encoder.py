@@ -60,14 +60,12 @@ class BinaryUtils():
         self.max_long = 0xffffffff
 
     def redef_bytes(self, hex_bytes):
-        to_return = list()
-        for i in range(0, len(hex_bytes), 2):
-            to_return.append(hex_bytes[i:i+2])
+        to_return = [hex_bytes[i:i+2] for i in range(0, len(hex_bytes), 2)]
         return ''.join(to_return)
 
 
     def reverse_bytes(self, hex_bytes):
-        to_return = list()
+        to_return = []
         for i in range(0, len(hex_bytes), 1):
             to_return.insert(0, hex_bytes[i:i+1])
         return ''.join(to_return)
@@ -115,11 +113,10 @@ class AddSubEncoder():
         length = -len(_bytes)
         if length == 0:
             return _bytes
-        old_value = _bytes[length:length + 2]
-        if not old_value:
-            return _bytes
-        new_value = hex( int(old_value,16) -1 )[-2:]
-        return new_value + _bytes[length + 2:]   
+        if old_value := _bytes[length : length + 2]:
+            return hex( int(old_value,16) -1 )[-2:] + _bytes[length + 2:]
+        else:
+            return _bytes   
 
 
     def encode(self, shellcode):
@@ -128,7 +125,7 @@ class AddSubEncoder():
 
             # Formatting the shellcode 
             formatted = [shellcode[i:i+4] for i in range(0, len(shellcode) -1 , 4)]
-            if not formatted[-1:] == "\x00":
+            if formatted[-1:] != "\x00":
                 lastlen = 4 - len(formatted[-1:])
                 formatted[-1:] += "\x00" * lastlen
 
@@ -152,12 +149,12 @@ class AddSubEncoder():
                     if b1 & b2 == 0:
                         _b1, _b2 = (hex(b1)[-2:]*4, hex(b2)[-2:]*4)
                         if not zero_printed:
-                            print("\n[+] Zeroing out with:\n\t- 0x{} AND 0x{}\n".format(_b1,_b2))
-                            zero_printed = True                        
-                        fout.write("AND EAX, 0x{}\nAND EAX, 0x{}\n".format(_b1,_b2))
+                            print(f"\n[+] Zeroing out with:\n\t- 0x{_b1} AND 0x{_b2}\n")
+                            zero_printed = True
+                        fout.write(f"AND EAX, 0x{_b1}\nAND EAX, 0x{_b2}\n")
                         found = True
                         break        
-                   
+
                 if not found:
                     print("[-] Could not find a valid combination such as 0x? & 0x? = 0 in the current character set.")
                     exit(1)
@@ -166,12 +163,12 @@ class AddSubEncoder():
                     self.print_headers()
                     headers_printed = True
 
-                orig="{}".format(hexlify(shellcode))
+                orig = f"{hexlify(shellcode)}"
 
                 # Reversing bytes
                 try:
                     shellcode = self.binutils.reverse_bytes(shellcode)
-                    rev = "{}".format(hexlify(shellcode))
+                    rev = f"{hexlify(shellcode)}"
                 except Exception as e:
                     print(e)
                     print("[-] Something went wrong. (#reverse_bytes)")
@@ -180,7 +177,7 @@ class AddSubEncoder():
                 # Calculating two's complement
                 try:
                     shellcode = self.binutils.twos_comp(hexlify(shellcode))
-                    tc = "{}".format(hexlify(shellcode))
+                    tc = f"{hexlify(shellcode)}"
                 except Exception as e:
                     print(e)
                     print("[-] Something went wrong (#two_comp)") 
@@ -189,12 +186,12 @@ class AddSubEncoder():
                 for i in shellcode[::-1]:
                     # Get a byte out of the actual shellcode to encode
                     shellcode_byte = hexlify(i)
-                    
+
                     for j, k, m in self.binutils.matrix_3(self.charset):
                         _j, _k, _m, _sum = (ord(j), ord(k), ord(m), ord(j) + ord(k) + ord(m)) 
                         # Found a valid permutation?
                         if (_sum == int(shellcode_byte, 16)) or (len(hex(_sum)) == 5 and int(hex(_sum)[3:5], 16) == int(shellcode_byte, 16) ):
-                            
+
                             _bytes = [ hex(_iter)[-2:] + _b for _iter, _b in zip([_j,_k,_m], _bytes) ]
 
                             # Detect overflow
@@ -208,8 +205,8 @@ class AddSubEncoder():
                 # Check if the end result is 8 bytes in length
                 if all( len(_b) == 8 for _b in _bytes ):
                     print(self.row_format.format(orig,rev,tc,*_bytes))
-                    for msg in [ "0x{}".format(_b) for _b in _bytes ]:
-                       fout.write("SUB EAX, {}\n".format(msg)) 
+                    for msg in [f"0x{_b}" for _b in _bytes]:
+                        fout.write(f"SUB EAX, {msg}\n")
                     fout.write("PUSH EAX\n")
                 else:
                     print("[-] Could not find a valid triple in the current character set.")
@@ -238,11 +235,10 @@ class OptSubEncoder():
         length = -len(_bytes)
         if length == 0:
             return _bytes
-        old_value = _bytes[length:length + 2]
-        if not old_value:
-            return _bytes
-        new_value = hex( int(old_value,16) -1 )[-2:]
-        return new_value + _bytes[length + 2:]   
+        if old_value := _bytes[length : length + 2]:
+            return hex( int(old_value,16) -1 )[-2:] + _bytes[length + 2:]
+        else:
+            return _bytes   
 
     def encode(self, shellcode):
              
